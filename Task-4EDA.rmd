@@ -1,0 +1,243 @@
+---
+title: "Task-4 EDA GT"
+author: "Shashwat Patel"
+date: "06/02/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE,message=FALSE)
+```
+
+
+# **Attaching the packages.**
+
+```{r}
+library(tidyverse)
+library(gridExtra)
+library(plotly)
+```
+
+# **Reading the data.**
+
+```{r}
+data<-read_csv("globalterrorismdb_0718dist.csv")
+```
+
+# **Basic summary of the data**
+
+```{r}
+head(data)
+tail(data)
+```
+
+```{r}
+colnames(data)
+```
+
+- **Column names of the data which are required.**
+
+- **Extracting the required columns as well**
+
+```{r}
+req_col<-c("iyear","country_txt","region_txt","provstate","city","success","suicide","attacktype1_txt","targtype1_txt","natlty1_txt","gname","weaptype1_txt","nkill","nwound")
+data<-data[,req_col]
+  
+```
+
+- Structure of data
+
+```{r}
+str(data)
+```
+
+- **Removing all rows having NA**
+
+```{r}
+data<-data%>%na.exclude()
+summary(data)
+```
+
+- **Renaming Column names**
+
+```{r}
+colnames(data)<-c("Year","Country","Region","State","City","Success","Suicide","Attacktype","Targettype","Nationality","Group","Weapontype","Kills","Wounded")
+```
+
+
+**Exploratory Data Analysis**
+
+- The trend of terrorist attack with year is seen.
+
+- From 1970 to 1992 there was a increase in attack.
+
+- From 1992 to 2003 there was a steady decrease in attack.
+
+- From 2003 to 2014 there was a increase in attack with sudden increase in attack from 2011 to 2014 period.
+
+- From 2014, there is decrease in attack but frequency is still pretty high.
+
+```{r}
+pl<-data%>%group_by(Year)%>%summarise(Count=n())%>%ggplot(aes(x=Year,y=Count))+geom_point(colour="blue",size=2)+
+  geom_line(colour="red",lwd=1)+ggtitle("Frequency of attack vs Year")+ylab("Frequency")
+ggplotly(pl)
+```
+
+
+- Iraq has been greatly affected by terrorist attacks.
+
+- Suprisingly, **United Kingdom** is also featured in this list.
+
+
+
+```{r}
+top_15_country<-data%>%group_by(Country)%>%summarise(Count=n())%>%slice_max(Count,n=15)
+least_15_country<-data%>%group_by(Country)%>%summarise(Count=n())%>%slice_min(Count,n=15)
+top_15_country%>%mutate(Country=reorder(Country,Count))%>%ggplot()+geom_col(aes(x=Country,y=Count),fill="#eb4934")+
+  coord_flip()+ylab("Frequency")+ggtitle("Top 15 countries affected by terrorist attacks")
+```
+
+- Not much can be extracted from this, but this analysis shows that geographical area might play a role. Most of the countries featured here are smaller countries.
+
+```{r}
+least_15_country%>%mutate(Country=reorder(Country,Count))%>%ggplot()+geom_col(aes(x=Country,y=Count),fill="#4feb34")+coord_flip()+ggtitle("Least affected 15 countries due to terrorist attack")
+```
+
+- Middle East and North African Region is worst affected due to the attacks. South Asia is pretty close also.
+
+
+```{r}
+data%>%ggplot()+geom_bar(aes(x=Region),fill="red")+coord_flip()+ggtitle("Region wise frequency of attack")
+```
+
+
+
+
+```{r,fig.height=10,fig.width=10}
+data$Success<-factor(data$Success)
+data%>%ggplot()+ geom_bar(aes(x=Year,fill=Success),position = "dodge")+ggtitle("Success vs Year")
+table(data$Success)
+```
+
+- Suicidal attacks are increasing in later years.
+
+```{r,fig.width=10}
+data$Suicide<-factor(data$Suicide)
+data%>%ggplot()+geom_bar(aes(x=Year,fill=Suicide),position = "dodge",binwidth = 1)+ggtitle("Suicidal attack vs year")
+```
+
+- The trend is pretty much similar to Attack count vs year
+
+```{r}
+plt2<-data%>%group_by(Year)%>%summarise(Kill=sum(Kills))%>%ggplot(aes(x=Year,y=Kill))+geom_point(colour="blue")+
+  geom_line(colour="red")+ggtitle("Kill count vs year" )
+ggplotly(plt2)
+```
+
+- Majority of attacks is done through Bombing/Explosion or an Armed assault.
+
+```{r}
+library(scales)
+data%>%group_by(Attacktype)%>%summarise(Kills=sum(Kills))%>%mutate(Attacktype=reorder(Attacktype,Kills))%>%ggplot()+
+  geom_col(aes(x=Attacktype,y=Kills),fill="red")+scale_y_continuous(labels = comma)+coord_flip()+ggtitle("Types of attacks and kills due to it")
+```
+
+- Majority of target of terrorist are **private citizens and property**
+
+```{r}
+data%>%group_by(Targettype)%>%summarise(Kills=sum(Kills))%>%mutate(Targettype=reorder(Targettype,Kills))%>%ggplot()+
+  geom_col(aes(x=Targettype,y=Kills),fill="red")+coord_flip()+ggtitle("Kills based on target type")
+```
+
+
+
+```{r}
+data%>%group_by(Nationality)%>%summarise(Kills=sum(Kills))%>%mutate(Nationality=reorder(Nationality,Kills))%>%slice_max(Kills,n=10)%>%ggplot()+geom_col(aes(x=Nationality,y=Kills),fill="#eb4934")+coord_flip()+
+  ggtitle("Kills based on Nationality")
+```
+
+
+
+
+```{r}
+grp_data<-data%>%group_by(Group)%>%summarise(Count=n(),nkills=sum(Kills))
+p1<-grp_data%>%mutate(Group=reorder(Group,Count))%>%slice_max(Count,n=7)%>%ggplot()+
+  geom_col(aes(x=Group,y=Count),fill="#eb4934")+coord_flip()+ggtitle("Major 7 terrorist groups responsible for attacks")
+p2<-grp_data%>%mutate(Group=reorder(Group,nkills))%>%slice_max(nkills,n=7)%>%ggplot()+
+  geom_col(aes(x=Group,y=nkills),fill="#eb4934")+coord_flip()+ggtitle("Major 7 groups responsible for killing")
+  
+grid.arrange(p1,p2,nrow=2)
+```
+
+- Majority of people are killed due to explosive and firearms.
+
+```{r}
+data%>%group_by(Weapontype)%>%summarise(nkill=sum(Kills))%>%mutate(Weapontype=reorder(Weapontype,nkill))%>%
+  slice_max(nkill,n=5)%>%ggplot()+geom_col(aes(x=Weapontype,y=nkill),fill="#eb4934")+coord_flip()+ylab("Kills")+
+  ggtitle("Kills based on weapon type")
+```
+
+
+
+```{r,fig.width=15,fig.height=17}
+data%>%ggplot()+geom_bar(aes(Attacktype,fill=Targettype),position = "dodge")
+  
+```
+
+## Some insight about Country India
+
+```{r}
+data_india<-data%>%filter(Country=="India")
+```
+
+
+- From 1970 to 1985 India had very less terrorist attack.
+
+- From 1988 to 1991, it was pretty much constant and then there was a decrease in attack upto 2007
+
+- From 2007, attacks have been increasing steadily at an alarming pace
+
+```{r}
+plot<-data_india%>%group_by(Year)%>%summarise(Count=n())%>%ggplot()+geom_point(aes(x=Year,y=Count),colour="blue")+
+  geom_line(aes(x=Year,y=Count),colour="red")+ggtitle("Attacks count vs year(India)")
+ggplotly(plot)
+```
+
+- Srinagar is worst affected city due to attacks.
+
+
+
+```{r,fig.width=7}
+plt1<-data_india%>%group_by(City)%>%summarise(Count=n())%>%slice_max(Count,n=4)%>%ggplot(aes(x=City,y=Count))+
+  geom_col(fill="darkred")+coord_flip()+ggtitle("Worst affetced cities due to attacks")
+plt2<-data_india%>%group_by(State)%>%summarise(Count=n())%>%slice_max(Count,n=4)%>%ggplot(aes(x=State,y=Count))+
+  geom_col(fill="darkred")+coord_flip()+ggtitle("Worst affected states due to attacks")
+grid.arrange(plt1,plt2,nrow=2)
+```
+
+# Conclusion
+
+- In most of the 20th Century (1970 to 2000), there was not a significant increase in terrorist attacks, but after 2010 there was seen a significant increase in terrorist attacks.
+
+- **Iraq** is worst affected due to terrorist attacks. Suprisingly, **United Kingdom** is also featured in top 15 worst affected countries due to terrorist attacks. Countries like Iraq, Pakistan are hot spots of terrorism.
+
+- Majority of attacks are in **Middle east, North African and south Asian region**.
+
+- The trend of number of people killed due to terrorist attack in a given year is very similar to frequency of attacks in given year.
+
+- Majority of attacks is done through **bombing/explosion and Armed assault** . The countries should keep a check on illegal selling on explosives as well as on industries dealing with these type of things.
+
+- Majority of targets are **private citizens and property**. It can be inferred that as majority of attacks are done through bombing or explosion, so citizens and property are worst affected. If bombing/explosion is reduced then attack on citzens and property might decrease.
+
+-  Majority of attack and killing is done by unkonwn organization or the other orzanization does not take the responsiblity for the attack. 
+
+- Most of the groups reponsible for higher frequency of attack is also reponsible for killing.
+
+- Number of **suicidal attacks** has increasesd significantly in recent years. There was no trace of suicidal attacks during 1970-2000s.
+
+# Short Conclusion on India
+
+- Worst affected city is Sringar, which is in Jammu and Kashmir. Manipur and Assam are also affected due to the attacks.
+
+
+
